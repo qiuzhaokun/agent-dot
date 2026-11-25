@@ -230,6 +230,28 @@ func runSessionReminderSchedulerTests() {
         )
     }
 
+    runTest("SessionReminderScheduler external wait reminds once") {
+        var scheduler = SessionReminderScheduler()
+        var running = reminderSession(id: "j", state: .running)
+        running.currentTool = "mcp__idea__execute_sql_query"
+        running.lastActivityAt = 100
+        running.updatedAt = 100
+        _ = updateScheduler(&scheduler, sessions: [running], now: 100)
+
+        let external = running.applyingExternalWaitAttention(now: 120)
+        expectEqual(external.state, .waitingPermission)
+        expectEqual(
+            updateScheduler(&scheduler, sessions: [external], now: 120),
+            [.authorization(sessionID: "j")]
+        )
+        expect(
+            updateScheduler(&scheduler, sessions: [external], now: 130).isEmpty
+        )
+        expect(
+            updateScheduler(&scheduler, sessions: [external], now: 140).isEmpty
+        )
+    }
+
     runTest("SessionReminderScheduler leaving waiting clears schedule") {
         var scheduler = SessionReminderScheduler()
         let running = reminderSession(id: "i", state: .running)

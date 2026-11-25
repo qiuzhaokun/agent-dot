@@ -72,7 +72,12 @@ final class SessionStore: ObservableObject {
         let now = Int64(Date().timeIntervalSince1970)
         guard let session = fileStore.loadAll().first(where: {
             $0.sessionID == sessionID
-        }), let waitingSince = session.waitingSince else {
+        }) else {
+            return
+        }
+        // 等待外部处理是应用侧推导出来的，原始会话文件里 waitingSince 可能为空。
+        let effective = session.applyingExternalWaitAttention(now: now)
+        guard let waitingSince = effective.waitingSince else {
             return
         }
         uiStore.acknowledge(
@@ -102,7 +107,7 @@ final class SessionStore: ObservableObject {
         let all = stored.map { state -> SessionState in
             var copy = state
             copy.displayName = displayNames[state.sessionID]
-            return copy
+            return copy.applyingExternalWaitAttention(now: now)
         }
         let ids = Set(all.map { $0.sessionID })
         let shouldCheckAlive = now - lastAliveCheck >= 5 || aliveCache.isEmpty
@@ -178,6 +183,9 @@ final class SessionStore: ObservableObject {
         let unacknowledgedWaiting = visible.filter { state in
             state.state == .waitingPermission
                 && state.terminal.app != .unknown
+                && !SessionAttention.requiresManualAcknowledgment(
+                    state.notificationType
+                )
                 && !AcknowledgmentStatePolicy.isAcknowledged(
                     session: state,
                     uiState: ui.sessions[state.sessionID]

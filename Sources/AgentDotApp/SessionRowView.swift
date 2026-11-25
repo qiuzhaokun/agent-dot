@@ -45,7 +45,14 @@ struct SessionRowView: View {
         .frame(height: 64)
         .overlay(alignment: .bottom) {
             // 分隔线画在行内部，保证每行严格占用 64pt，列表高度可按行数精确计算。
-            Divider().opacity(0.2).padding(.leading, 14)
+            LinearGradient(
+                colors: [.clear, Color.primary.opacity(0.10), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(height: 1)
+            .padding(.horizontal, 14)
+            .allowsHitTesting(false)
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: onJump)
@@ -82,6 +89,20 @@ struct SessionRowView: View {
         }
     }
 
+    private var attentionLabel: String? {
+        guard session.state == .waitingPermission else { return nil }
+        switch session.notificationType {
+        case SessionAttention.userQuestion, SessionAttention.plainQuestion:
+            return "待确认"
+        case SessionAttention.planApproval:
+            return "待批准"
+        case SessionAttention.externalWait:
+            return "等待外部"
+        default:
+            return "等待授权"
+        }
+    }
+
     private var stateLabel: String {
         switch session.state {
         case .idle:
@@ -89,7 +110,7 @@ struct SessionRowView: View {
         case .running:
             return "运行中"
         case .waitingPermission:
-            return "等待授权"
+            return attentionLabel ?? "等待授权"
         case .done:
             return "已完成 ✓"
         case .error:
@@ -131,7 +152,14 @@ struct SessionRowView: View {
             : session.terminal.app.rawValue
         let shortID = String(session.sessionID.suffix(4))
         if session.state == .waitingPermission, let waitingSince = session.waitingSince {
-            return "\(app) · 等待 \(duration(now - waitingSince)) · \(shortID)"
+            let reason: String
+            if session.notificationType == SessionAttention.externalWait,
+               let tool = session.currentTool {
+                reason = "\(tool) 等待外部确认"
+            } else {
+                reason = attentionLabel ?? "等待授权"
+            }
+            return "\(app) · \(reason) · \(duration(now - waitingSince)) · \(shortID)"
         }
         if session.state == .running, let tool = session.currentTool {
             return "\(app) · \(tool) · \(shortID)"

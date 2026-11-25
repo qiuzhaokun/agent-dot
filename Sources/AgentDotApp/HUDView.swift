@@ -39,7 +39,7 @@ struct HUDView: View {
     private var expandedView: some View {
         VStack(spacing: 0) {
             header
-            Divider().opacity(0.35)
+            panelSeparator
             if !viewModel.hooksInstalled {
                 Button {
                     viewModel.repairHooks()
@@ -109,17 +109,62 @@ struct HUDView: View {
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
                 .fill(.regularMaterial)
                 .opacity(viewModel.config.listBackgroundOpacity / 100)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            // 玻璃拟态描边：顶部亮、底部淡。
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.primary.opacity(0.16),
+                            Color.primary.opacity(0.03)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            // 顶部内高光，增强玻璃边缘。
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.20), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+                .mask(
+                    LinearGradient(
+                        colors: [.white, .clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+                .allowsHitTesting(false)
+        )
+        .clipShape(
+            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+        )
         .shadow(color: .black.opacity(0.24), radius: 18, y: 6)
         .padding(6)
+    }
+
+    private var panelCornerRadius: CGFloat { 18 }
+
+    private var panelSeparator: some View {
+        LinearGradient(
+            colors: [.clear, Color.primary.opacity(0.12), .clear],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .frame(height: 1)
+        .padding(.horizontal, 14)
     }
 
     private var isUpdateAvailable: Bool {

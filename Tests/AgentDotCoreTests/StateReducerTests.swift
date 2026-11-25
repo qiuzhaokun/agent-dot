@@ -141,6 +141,68 @@ func runStateReducerTests() {
         expectNil(out.currentTool)
     }
 
+    runTest("StateReducer idle_prompt does not clear waiting") {
+        let existing = TestSupport.makeSession(state: .waitingPermission, waitingSince: 100)
+        let payload = TestSupport.makePayload("Notification", notificationType: "idle_prompt")
+        let out = try unwrap(StateReducer().apply(
+            payload: payload, existing: existing, terminal: existing.terminal, now: 200
+        ))
+        expectEqual(out.state, .waitingPermission)
+        expectEqual(out.waitingSince, 100)
+    }
+
+    runTest("StateReducer AskUserQuestion enters waiting for input") {
+        let existing = TestSupport.makeSession(state: .running)
+        let payload = TestSupport.makePayload("PreToolUse", toolName: "AskUserQuestion")
+        let out = try unwrap(StateReducer().apply(
+            payload: payload, existing: existing, terminal: existing.terminal, now: 200
+        ))
+        expectEqual(out.state, .waitingPermission)
+        expectEqual(out.notificationType, SessionAttention.userQuestion)
+        expectEqual(out.waitingSince, 200)
+        expectEqual(out.currentTool, "AskUserQuestion")
+    }
+
+    runTest("StateReducer ExitPlanMode enters waiting for approval") {
+        let existing = TestSupport.makeSession(state: .running)
+        let payload = TestSupport.makePayload("PreToolUse", toolName: "ExitPlanMode")
+        let out = try unwrap(StateReducer().apply(
+            payload: payload, existing: existing, terminal: existing.terminal, now: 200
+        ))
+        expectEqual(out.state, .waitingPermission)
+        expectEqual(out.notificationType, SessionAttention.planApproval)
+        expectEqual(out.waitingSince, 200)
+    }
+
+    runTest("StateReducer Notification auth_success clears waiting") {
+        var existing = TestSupport.makeSession(state: .waitingPermission, waitingSince: 100)
+        existing.notificationType = SessionAttention.elicitationDialog
+        let payload = TestSupport.makePayload("Notification", notificationType: "auth_success")
+        let out = try unwrap(StateReducer().apply(
+            payload: payload, existing: existing, terminal: existing.terminal, now: 200
+        ))
+        expectEqual(out.state, .running)
+        expectNil(out.waitingSince)
+        expectNil(out.notificationType)
+    }
+
+    runTest("StateReducer Notification elicitation types set waiting") {
+        for type in [
+            SessionAttention.elicitationDialog,
+            SessionAttention.elicitationURLDialog,
+            SessionAttention.workerPermissionPrompt
+        ] {
+            let existing = TestSupport.makeSession(state: .running)
+            let payload = TestSupport.makePayload("Notification", notificationType: type)
+            let out = try unwrap(StateReducer().apply(
+                payload: payload, existing: existing, terminal: existing.terminal, now: 200
+            ))
+            expectEqual(out.state, .waitingPermission)
+            expectEqual(out.notificationType, type)
+            expectEqual(out.waitingSince, 200)
+        }
+    }
+
     runTest("StateReducer Notification other type is ignored") {
         let existing = TestSupport.makeSession(state: .running)
         let payload = TestSupport.makePayload("Notification", notificationType: "auth_success")

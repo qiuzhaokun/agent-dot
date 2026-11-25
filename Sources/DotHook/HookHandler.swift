@@ -32,7 +32,18 @@ struct HookHandler {
                     terminal: terminal,
                     now: now
                 ) {
-                    try store.save(state)
+                    let isQuestion = payload.hookEventName == "Stop"
+                        && (payload.transcriptPath.map {
+                            TranscriptQuestionDetector.lastAssistantTextEndsWithQuestion(
+                                transcriptPath: $0
+                            )
+                        } ?? false)
+                    try store.save(
+                        state.applyingPlainQuestionAttention(
+                            now: now,
+                            isQuestion: isQuestion
+                        )
+                    )
                 }
             }
         } catch {

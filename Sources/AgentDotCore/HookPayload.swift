@@ -10,6 +10,7 @@ public struct HookPayload: Decodable, Equatable {
     public var toolUseID: String?
     public var notificationType: String?
     public var errorType: String?
+    public var transcriptPath: String?
 
     public init(
         sessionID: String,
@@ -20,7 +21,8 @@ public struct HookPayload: Decodable, Equatable {
         toolName: String? = nil,
         toolUseID: String? = nil,
         notificationType: String? = nil,
-        errorType: String? = nil
+        errorType: String? = nil,
+        transcriptPath: String? = nil
     ) {
         self.sessionID = sessionID
         self.cwd = cwd
@@ -31,6 +33,7 @@ public struct HookPayload: Decodable, Equatable {
         self.toolUseID = toolUseID
         self.notificationType = notificationType
         self.errorType = errorType
+        self.transcriptPath = transcriptPath
     }
 
     enum CodingKeys: String, CodingKey {
@@ -43,5 +46,6 @@ public struct HookPayload: Decodable, Equatable {
         case toolUseID = "tool_use_id"
         case notificationType = "notification_type"
         case errorType = "error_type"
+        case transcriptPath = "transcript_path"
     }
 }

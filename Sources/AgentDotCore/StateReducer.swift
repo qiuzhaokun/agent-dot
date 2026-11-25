@@ -30,11 +30,32 @@ public struct StateReducer {
             state.turnEndedAt = nil
             state.lastActivityAt = now
         case .preToolUse:
-            if state.state != .waitingPermission {
+            let toolName = payload.toolName.map { limited($0, max: 64) }
+            if toolName == "AskUserQuestion" {
+                state.state = .waitingPermission
+                state.notificationType = SessionAttention.userQuestion
+                if state.waitingSince == nil {
+                    state.waitingSince = now
+                }
+                if state.turnStartedAt == nil {
+                    state.turnStartedAt = now
+                }
+                state.turnEndedAt = nil
+            } else if toolName == "ExitPlanMode" {
+                state.state = .waitingPermission
+                state.notificationType = SessionAttention.planApproval
+                if state.waitingSince == nil {
+                    state.waitingSince = now
+                }
+                if state.turnStartedAt == nil {
+                    state.turnStartedAt = now
+                }
+                state.turnEndedAt = nil
+            } else if state.state != .waitingPermission {
                 state.state = .running
                 state.notificationType = nil
             }
-            state.currentTool = payload.toolName.map { limited($0, max: 64) }
+            state.currentTool = toolName
             state.lastActivityAt = now
         case .postToolUse:
             state.state = .running
@@ -62,7 +83,10 @@ public struct StateReducer {
             state.lastActivityAt = now
         case .notification:
             switch payload.notificationType {
-            case "permission_prompt", "agent_needs_input":
+            case "permission_prompt", "agent_needs_input",
+                 SessionAttention.elicitationDialog,
+                 SessionAttention.elicitationURLDialog,
+                 SessionAttention.workerPermissionPrompt:
                 state.state = .waitingPermission
                 if state.waitingSince == nil {
                     state.waitingSince = now
@@ -70,9 +94,18 @@ public struct StateReducer {
                 if state.turnStartedAt == nil {
                     state.turnStartedAt = now
                 }
+                state.turnEndedAt = nil
                 state.notificationType = payload.notificationType
                 state.lastActivityAt = now
+            case "auth_success":
+                guard state.state == .waitingPermission else { return nil }
+                state.state = .running
+                state.waitingSince = nil
+                state.notificationType = nil
+                state.lastActivityAt = now
             case "idle_prompt":
+                // 已有待用户处理的事项时，idle_prompt 不能把状态改成已完成。
+                guard state.state != .waitingPermission else { break }
                 state.state = .done
                 state.turnEndedAt = now
                 state.waitingSince = nil

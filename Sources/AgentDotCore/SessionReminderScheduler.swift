@@ -56,6 +56,9 @@ public struct SessionReminderScheduler {
                 continue
             }
 
+            let isExternalWait = session.notificationType
+                == SessionAttention.externalWait
+
             let currentWaitingSince = session.waitingSince
             let previousWaiting = previousWaitingSince[id]
             let enteredWaiting: Bool
@@ -71,7 +74,11 @@ public struct SessionReminderScheduler {
 
             if enteredWaiting {
                 events.append(.authorization(sessionID: id))
-                nextReminders[id] = now + Self.authorizationRepeatInterval
+                if !isExternalWait {
+                    nextReminders[id] = now + Self.authorizationRepeatInterval
+                }
+            } else if isExternalWait {
+                // 外部等待只提醒一次，不跟随每 10 秒重复。
             } else if let due = nextAuthorizationReminderAt[id] {
                 if now >= due {
                     events.append(.authorization(sessionID: id))

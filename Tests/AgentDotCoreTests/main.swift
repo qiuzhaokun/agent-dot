@@ -66,6 +66,14 @@ if shouldRun("SessionReminderScheduler") {
     runSessionReminderSchedulerTests()
 }
 
+if shouldRun("SessionAttention") {
+    runSessionAttentionTests()
+}
+
+if shouldRun("TranscriptQuestionDetector") {
+    runTranscriptQuestionDetectorTests()
+}
+
 if shouldRun("Update") {
     runUpdateTests()
 }
