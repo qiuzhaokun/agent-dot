@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (major.minor.patch, e.g. 0.1.1)"
+        required: true
+      notes:
+        description: "Release notes"
+        required: false
+        default: ""
+      prerelease:
+        description: "Mark as pre-release"
+        type: boolean
+        default: false
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "invalid version: $VERSION" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: |
+          bash scripts/test.sh
+          bash scripts/simulate.sh
+
+      - name: Package
+        env:
+          AGENTDOT_UPDATE_PRIVATE_KEY: ${{ secrets.AGENTDOT_UPDATE_PRIVATE_KEY }}
+          AGENTDOT_RELEASE_NOTES: ${{ inputs.notes }}
+        run: |
+          bash scripts/package-release.sh "${{ steps.version.outputs.version }}"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          NOTES: ${{ inputs.notes }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          ARGS=(--title "AgentDot $VERSION")
+          if [ -n "${NOTES:-}" ]; then
+            ARGS+=(--notes "$NOTES")
+          else
+            ARGS+=(--generate-notes)
+          fi
+          if [ "${PRERELEASE:-false}" = "true" ]; then
+            ARGS+=(--prerelease)
+          fi
+          gh release create "v$VERSION" \
+            "dist/AgentDot-$VERSION.dmg" \
+            "dist/AgentDot-$VERSION.zip" \
+            "dist/latest.json" \
+            "dist/SHA256SUMS" \
+            "${ARGS[@]}"

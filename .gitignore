@@ -1,0 +1,7 @@
+.build/
+dist/
+.DS_Store
+.superpowers/
+.idea/
+update-private-key.base64
+*.private-key*

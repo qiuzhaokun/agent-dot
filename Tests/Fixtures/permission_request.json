@@ -1,0 +1,1 @@
+{"session_id":"abc123","cwd":"/Users/example/webroot/agent-dot","hook_event_name":"PermissionRequest","tool_name":"Bash","tool_use_id":"toolu_test","tool_input":{"command":"secret-command"}}
