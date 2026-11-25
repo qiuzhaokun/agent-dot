@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         try? AgentDotPaths.ensureDirectories()
+        AppInstaller.cleanupLegacyBackups()
         let store = ConfigStore(fileURL: AgentDotPaths.configURL)
         let demo = CommandLine.arguments.contains("--demo")
         var config = store.load()

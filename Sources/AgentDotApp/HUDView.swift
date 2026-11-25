@@ -31,6 +31,18 @@ struct HUDView: View {
                         viewModel.expanded = true
                     }
                 }))
+                .contextMenu {
+                    Button("设置…") {
+                        onOpenSettings()
+                    }
+                    Button("检查更新…") {
+                        viewModel.checkForUpdates(manual: true)
+                    }
+                    Divider()
+                    Button("退出 AgentDot") {
+                        NSApp.terminate(nil)
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -6,7 +6,8 @@ AgentDot 是一个 macOS 置顶悬浮球，聚合 Claude Code CLI 会话状态�
 - 需要你介入时圆点和进度条红色脉冲：权限提示、Claude 提问（AskUserQuestion / 计划批准）、MCP elicitation；工具超过 20 秒未返回时提示可能正在等待系统/IDE 授权；Stop 时检测纯文本提问；
 - 点击会话行跳转到 iTerm2 / Terminal / Kaku / Ghostty 对应标签页或面板；
 - 精确到标签页/面板的消警：只有该会话所在标签页成为活动标签才停止脉冲（外部等待和纯文本提问需手动忽略）；
-- 收起态 ≤N 显示彩色小点，>N 显示数字（N 默认 5，范围 1–9）。
+- 收起态 ≤N 显示彩色小点，>N 显示数字（N 默认 5，范围 1–9）；
+- 退出入口：右键悬浮球、设置 → 维护 → 退出 AgentDot，或菜单栏 AgentDot 图标菜单。
 
 当前只接入 Claude Code CLI；DSH、WorkBuddy 未接入。
 
@@ -39,6 +40,8 @@ bash scripts/dev-run.sh --demo
 
 自动更新要求 app 位于 `~/Applications`；放在 `/Applications` 可能因权限无法自动替换，会提示移动。
 
+**只保留一份安装**：自动更新只管理 `~/Applications/AgentDot.app`。如果又手动把 DMG 拖到 `/Applications`，Launchpad/Spotlight 会显示两个相同图标；保留 `~/Applications` 那份，删除另一个即可。应用启动时会自动把历史遗留的 `.previous-*.app` 备份迁移到 `~/Library/Application Support/AgentDot/Backups` 并改名为 `.app.backup`，不会再出现在应用列表。
+
 ## 自动更新
 
 - 启动时 + 每 24h + 菜单/设置“检查更新”。
@@ -46,7 +49,7 @@ bash scripts/dev-run.sh --demo
   1. 下载 `AgentDot-<version>.zip`；
   2. 校验 SHA256 + Ed25519（公钥内置 app）；
   3. 解压、校验 bundle id/version；
-  4. app 自替换：备份旧版 → 替换 → 去 quarantine → 重启（`UpdaterEngine`，避免 App Management 拦截；`AgentDotUpdater` 保留为备用/手动）；
+  4. app 自替换：备份旧版到 `~/Library/Application Support/AgentDot/Backups`（`.app.backup`，不会被识别成第二个 App）→ 替换 → 去 quarantine → 重启（`UpdaterEngine`，避免 App Management 拦截；`AgentDotUpdater` 保留为备用/手动）；
   5. 失败自动回滚。
 - 不做静默更新；每次由用户点“升级”。
 - 更新清单：`https://github.com/qiuzhaokun/agent-dot/releases/latest/download/latest.json`。

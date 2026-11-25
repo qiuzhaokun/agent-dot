@@ -173,6 +173,9 @@ struct SettingsView: View {
                 Text("AgentDot \(viewModel.currentVersionString) · 跳转需要自动化权限")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                Button("退出 AgentDot") {
+                    NSApp.terminate(nil)
+                }
             } header: {
                 Text("维护")
             }

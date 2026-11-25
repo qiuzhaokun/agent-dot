@@ -120,6 +120,10 @@ func runUpdateTests() {
         let backups = root.appendingPathComponent("Backups")
         try makeFakeApp(at: current, version: "0.1.0")
         try makeFakeApp(at: update, version: "0.1.1")
+        try makeFakeApp(
+            at: backups.appendingPathComponent("AgentDot-0.0.9-1.app"),
+            version: "0.0.9"
+        )
 
         try UpdaterEngine().install(
             currentApp: current,
@@ -137,6 +141,10 @@ func runUpdateTests() {
             includingPropertiesForKeys: nil
         )
         expectEqual(backupItems.count, 1)
+        expect(
+            backupItems.first?.lastPathComponent.hasSuffix(".app.backup") == true,
+            "backup should use .app.backup extension"
+        )
         expect(!FileManager.default.fileExists(atPath: update.path))
     }
 

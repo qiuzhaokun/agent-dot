@@ -52,18 +52,19 @@ public struct UpdaterEngine {
             attributes: [.posixPermissions: 0o700]
         )
 
-        if currentExists {
-            let existing = (try? fileManager.contentsOfDirectory(
-                at: backupDirectory,
-                includingPropertiesForKeys: nil
-            )) ?? []
-            for item in existing where item.pathExtension == "app" {
-                try? fileManager.removeItem(at: item)
-            }
+        let existing = (try? fileManager.contentsOfDirectory(
+            at: backupDirectory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        for item in existing
+        where item.lastPathComponent.hasSuffix(".app")
+            || item.lastPathComponent.hasSuffix(".app.backup") {
+            try? fileManager.removeItem(at: item)
         }
 
+        // .app.backup 不会被 Spotlight/Launchpad 识别成第二个 AgentDot。
         let backupURL = backupDirectory.appendingPathComponent(
-            "AgentDot-\(currentVersion)-\(Int(Date().timeIntervalSince1970)).app"
+            "AgentDot-\(currentVersion)-\(Int(Date().timeIntervalSince1970)).app.backup"
         )
         var movedCurrent = false
 
