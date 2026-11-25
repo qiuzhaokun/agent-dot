@@ -24,6 +24,7 @@ cp .build/release/AgentDot "$APP/Contents/MacOS/AgentDot"
 cp .build/release/dot-hook "$APP/Contents/Helpers/dot-hook"
 cp .build/release/AgentDotUpdater "$APP/Contents/Helpers/AgentDotUpdater"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 chmod 755 "$APP/Contents/MacOS/AgentDot" \
   "$APP/Contents/Helpers/dot-hook" \
   "$APP/Contents/Helpers/AgentDotUpdater"
