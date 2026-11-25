@@ -4,8 +4,12 @@ import AgentDotCore
 
 struct HUDView: View {
     @ObservedObject var viewModel: HUDViewModel
+    let dragController: WindowDragController
+    let listResizeController: ListResizeController
     let onOpenSettings: () -> Void
     let onJump: (SessionState) -> Void
+    @State private var isDraggingWindow = false
+    @State private var isResizingList = false
 
     var body: some View {
         Group {
@@ -17,15 +21,16 @@ struct HUDView: View {
                     threshold: viewModel.config.thresholdN,
                     aggregate: viewModel.aggregate,
                     acknowledgedSessionIDs: viewModel.acknowledgedSessionIDs,
-                    hasUpdate: isUpdateAvailable
+                    hasUpdate: isUpdateAvailable,
+                    backgroundOpacity: viewModel.config.ballBackgroundOpacity / 100
                 )
                 .frame(width: 56, height: 56)
                 .contentShape(Circle())
-                .onTapGesture {
+                .gesture(windowDragGesture(tapAction: {
                     withAnimation(.easeInOut(duration: 0.18)) {
                         viewModel.expanded = true
                     }
-                }
+                }))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -96,15 +101,17 @@ struct HUDView: View {
                                     viewModel.clearAcknowledgment(sessionID: session.sessionID)
                                 }
                             )
-                            Divider().opacity(0.2).padding(.leading, 14)
                         }
                     }
                 }
+                .scrollIndicators(.visible)
+                resizeHandle
             }
         }
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(.regularMaterial)
+                .opacity(viewModel.config.listBackgroundOpacity / 100)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -262,17 +269,76 @@ struct HUDView: View {
         Divider().opacity(0.2)
     }
 
+    private func windowDragGesture(tapAction: (() -> Void)? = nil) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { _ in
+                if !isDraggingWindow {
+                    isDraggingWindow = true
+                    dragController.begin()
+                }
+                dragController.update()
+            }
+            .onEnded { _ in
+                let wasTap = dragController.totalDistance < 4
+                dragController.end()
+                isDraggingWindow = false
+                if wasTap {
+                    tapAction?()
+                }
+            }
+    }
+
+    private func listResizeGesture() -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { _ in
+                if !isResizingList {
+                    isResizingList = true
+                    listResizeController.begin()
+                }
+                listResizeController.update()
+            }
+            .onEnded { _ in
+                listResizeController.end()
+                isResizingList = false
+            }
+    }
+
+    private var resizeHandle: some View {
+        ZStack {
+            Color.clear
+            Capsule()
+                .fill(Color.primary.opacity(0.18))
+                .frame(width: 36, height: 3)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 10)
+        .contentShape(Rectangle())
+        .gesture(listResizeGesture())
+        .onHover { hovering in
+            if hovering {
+                NSCursor.resizeUpDown.set()
+            } else {
+                NSCursor.arrow.set()
+            }
+        }
+        .help("拖动调整列表高度")
+    }
+
     private var header: some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(headerColor)
-                .frame(width: 10, height: 10)
-            Text("AgentDot")
-                .font(.system(size: 13, weight: .semibold))
-            Spacer()
-            Text("\(viewModel.sessions.count) 个会话")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(headerColor)
+                    .frame(width: 10, height: 10)
+                Text("AgentDot")
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Text("\(viewModel.sessions.count) 个会话")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .contentShape(Rectangle())
+            .gesture(windowDragGesture())
             Button(action: onOpenSettings) {
                 Image(systemName: "gearshape")
             }

@@ -78,6 +78,8 @@ public struct SessionState: Codable, Equatable {
     public var sessionID: String
     public var cwd: String
     public var projectName: String
+    /// 运行时从 Claude Code 会话注册表读取的 /rename 名称；不写入会话文件。
+    public var displayName: String?
     public var state: SessionPhase
     public var currentTool: String?
     public var notificationType: String?
@@ -105,7 +107,8 @@ public struct SessionState: Codable, Equatable {
         turnStartedAt: Int64? = nil,
         turnEndedAt: Int64? = nil,
         waitingSince: Int64? = nil,
-        terminal: TerminalContext
+        terminal: TerminalContext,
+        displayName: String? = nil
     ) {
         self.schema = schema
         self.sessionID = sessionID
@@ -122,6 +125,7 @@ public struct SessionState: Codable, Equatable {
         self.turnEndedAt = turnEndedAt
         self.waitingSince = waitingSince
         self.terminal = terminal
+        self.displayName = displayName
     }
 
     public static func projectName(
@@ -142,6 +146,7 @@ public struct SessionState: Codable, Equatable {
         case sessionID = "session_id"
         case cwd
         case projectName = "project_name"
+        case displayName = "display_name"
         case state
         case currentTool = "current_tool"
         case notificationType = "notification_type"

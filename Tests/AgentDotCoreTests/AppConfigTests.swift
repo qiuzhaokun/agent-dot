@@ -24,15 +24,71 @@ func runAppConfigTests() {
         expectEqual(anchor?.normalizedY, 1)
     }
 
+    runTest("AppConfig expandedListHeight defaults to nil") {
+        expectNil(AppConfig.default.expandedListHeight)
+    }
+
+    runTest("AppConfig clamps expandedListHeight to one through nine rows") {
+        var config = AppConfig.default
+        config.expandedListHeight = 20
+        expectEqual(config.clamped().expandedListHeight, AppConfig.minListHeight)
+        config.expandedListHeight = 1000
+        expectEqual(config.clamped().expandedListHeight, AppConfig.maxListHeight)
+        config.expandedListHeight = 320
+        expectEqual(config.clamped().expandedListHeight, 320)
+    }
+
+    runTest("AppConfig background opacity defaults to opaque and clamps to 10 through 100") {
+        expectEqual(AppConfig.default.ballBackgroundOpacity, 100)
+        expectEqual(AppConfig.default.listBackgroundOpacity, 100)
+
+        var config = AppConfig.default
+        config.ballBackgroundOpacity = 0
+        config.listBackgroundOpacity = 200
+        let clamped = config.clamped()
+        expectEqual(clamped.ballBackgroundOpacity, AppConfig.minBackgroundOpacity)
+        expectEqual(clamped.listBackgroundOpacity, AppConfig.maxBackgroundOpacity)
+    }
+
+    runTest("AppConfig decodes missing opacity and sounds with defaults") {
+        let data = try JSONEncoder().encode(["thresholdN": 7])
+        let config = try JSONDecoder().decode(AppConfig.self, from: data)
+        expectEqual(config.ballBackgroundOpacity, 100)
+        expectEqual(config.listBackgroundOpacity, 100)
+        expectEqual(config.authorizationSoundEnabled, false)
+        expectEqual(config.completionSoundEnabled, false)
+        expectEqual(config.authorizationSoundName, "Glass")
+        expectEqual(config.completionSoundName, "Ping")
+    }
+
+    runTest("AppConfig sound reminders default to off") {
+        expectEqual(AppConfig.default.authorizationSoundEnabled, false)
+        expectEqual(AppConfig.default.completionSoundEnabled, false)
+    }
+
     runTest("ConfigStore round trip") {
         let url = TestSupport.tempDirectory().appendingPathComponent("config.json")
         let store = ConfigStore(fileURL: url)
         var config = AppConfig.default
         config.thresholdN = 7
         config.launchAtLogin = false
+        config.expandedListHeight = 384
+        config.ballBackgroundOpacity = 40
+        config.listBackgroundOpacity = 60
+        config.authorizationSoundEnabled = true
+        config.completionSoundEnabled = true
+        config.authorizationSoundName = "Hero"
+        config.completionSoundName = "Funk"
         try store.save(config)
         expectEqual(store.load().thresholdN, 7)
         expectEqual(store.load().launchAtLogin, false)
+        expectEqual(store.load().expandedListHeight, 384)
+        expectEqual(store.load().ballBackgroundOpacity, 40)
+        expectEqual(store.load().listBackgroundOpacity, 60)
+        expectEqual(store.load().authorizationSoundEnabled, true)
+        expectEqual(store.load().completionSoundEnabled, true)
+        expectEqual(store.load().authorizationSoundName, "Hero")
+        expectEqual(store.load().completionSoundName, "Funk")
     }
 
     runTest("ConfigStore returns defaults on corrupt file") {

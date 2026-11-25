@@ -58,6 +58,14 @@ if shouldRun("KakuActivePaneParser") {
     runKakuActivePaneParserTests()
 }
 
+if shouldRun("SessionNameResolver") {
+    runSessionNameResolverTests()
+}
+
+if shouldRun("SessionReminderScheduler") {
+    runSessionReminderSchedulerTests()
+}
+
 if shouldRun("Update") {
     runUpdateTests()
 }

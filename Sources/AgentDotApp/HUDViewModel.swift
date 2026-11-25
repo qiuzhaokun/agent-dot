@@ -33,6 +33,8 @@ final class HUDViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private weak var sessionStore: SessionStore?
     private weak var updateService: UpdateService?
+    private var reminderScheduler = SessionReminderScheduler()
+    private let soundPlayer = SystemSoundPlayer()
 
     init(config: AppConfig, demo: Bool = false) {
         self.config = config
@@ -84,6 +86,44 @@ final class HUDViewModel: ObservableObject {
                 self?.acknowledgedSessionIDs = ids
             }
             .store(in: &cancellables)
+        store.$visibleSessions
+            .combineLatest(store.$acknowledgedSessionIDs)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] sessions, acknowledgedIDs in
+                self?.processSoundReminders(
+                    sessions: sessions,
+                    acknowledgedIDs: acknowledgedIDs
+                )
+            }
+            .store(in: &cancellables)
+    }
+
+    private func processSoundReminders(
+        sessions: [SessionState],
+        acknowledgedIDs: Set<String>
+    ) {
+        guard !isDemo else { return }
+        let events = reminderScheduler.update(
+            sessions: sessions,
+            acknowledgedSessionIDs: acknowledgedIDs,
+            authorizationEnabled: config.authorizationSoundEnabled,
+            completionEnabled: config.completionSoundEnabled,
+            now: Int64(Date().timeIntervalSince1970)
+        )
+        for event in events {
+            switch event {
+            case .authorization:
+                soundPlayer.play(
+                    name: config.authorizationSoundName,
+                    kind: "authorization"
+                )
+            case .completion:
+                soundPlayer.play(
+                    name: config.completionSoundName,
+                    kind: "completion"
+                )
+            }
+        }
     }
 
     func acknowledge(sessionID: String) {

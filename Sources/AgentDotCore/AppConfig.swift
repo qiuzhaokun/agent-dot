@@ -13,6 +13,18 @@ public struct BallAnchor: Codable, Equatable {
 }
 
 public struct AppConfig: Codable, Equatable {
+    /// 展开面板列表中一行的高度（pt）。
+    public static let listRowHeight: Double = 64
+    /// 列表区域最小高度：1 行。
+    public static let minListHeight: Double = listRowHeight
+    /// 列表区域最大高度：9 行。
+    public static let maxListHeight: Double = listRowHeight * 9
+    /// 背景透明度下限：保留最小可见度，避免完全隐身。
+    public static let minBackgroundOpacity: Double = 10
+    public static let maxBackgroundOpacity: Double = 100
+    public static let defaultAuthorizationSoundName = "Glass"
+    public static let defaultCompletionSoundName = "Ping"
+
     public var schema: Int
     public var thresholdN: Int
     public var launchAtLogin: Bool
@@ -21,6 +33,20 @@ public struct AppConfig: Codable, Equatable {
     public var skippedUpdateVersion: String?
     public var lastUpdateCheckAt: Int64?
     public var lastLaunchedVersion: String?
+    /// 用户拖拽设置过的列表高度；nil 表示按会话数自动取 min(数量, 5) 行。
+    public var expandedListHeight: Double?
+    /// 悬浮球背景透明度（百分比，10–100）。
+    public var ballBackgroundOpacity: Double
+    /// 展开面板背景透明度（百分比，10–100）。
+    public var listBackgroundOpacity: Double
+    /// 等待授权提示音开关（默认关闭）。
+    public var authorizationSoundEnabled: Bool
+    /// 任务完成提示音开关（默认关闭）。
+    public var completionSoundEnabled: Bool
+    /// 等待授权提示音名称。
+    public var authorizationSoundName: String
+    /// 任务完成提示音名称。
+    public var completionSoundName: String
 
     public init(
         schema: Int,
@@ -30,7 +56,14 @@ public struct AppConfig: Codable, Equatable {
         automaticUpdateChecks: Bool = true,
         skippedUpdateVersion: String? = nil,
         lastUpdateCheckAt: Int64? = nil,
-        lastLaunchedVersion: String? = nil
+        lastLaunchedVersion: String? = nil,
+        expandedListHeight: Double? = nil,
+        ballBackgroundOpacity: Double = AppConfig.maxBackgroundOpacity,
+        listBackgroundOpacity: Double = AppConfig.maxBackgroundOpacity,
+        authorizationSoundEnabled: Bool = false,
+        completionSoundEnabled: Bool = false,
+        authorizationSoundName: String = AppConfig.defaultAuthorizationSoundName,
+        completionSoundName: String = AppConfig.defaultCompletionSoundName
     ) {
         self.schema = schema
         self.thresholdN = thresholdN
@@ -40,6 +73,13 @@ public struct AppConfig: Codable, Equatable {
         self.skippedUpdateVersion = skippedUpdateVersion
         self.lastUpdateCheckAt = lastUpdateCheckAt
         self.lastLaunchedVersion = lastLaunchedVersion
+        self.expandedListHeight = expandedListHeight
+        self.ballBackgroundOpacity = ballBackgroundOpacity
+        self.listBackgroundOpacity = listBackgroundOpacity
+        self.authorizationSoundEnabled = authorizationSoundEnabled
+        self.completionSoundEnabled = completionSoundEnabled
+        self.authorizationSoundName = authorizationSoundName
+        self.completionSoundName = completionSoundName
     }
 
     public init(from decoder: Decoder) throws {
@@ -64,6 +104,34 @@ public struct AppConfig: Codable, Equatable {
             String.self,
             forKey: .lastLaunchedVersion
         )
+        expandedListHeight = try container.decodeIfPresent(
+            Double.self,
+            forKey: .expandedListHeight
+        )
+        ballBackgroundOpacity = try container.decodeIfPresent(
+            Double.self,
+            forKey: .ballBackgroundOpacity
+        ) ?? Self.maxBackgroundOpacity
+        listBackgroundOpacity = try container.decodeIfPresent(
+            Double.self,
+            forKey: .listBackgroundOpacity
+        ) ?? Self.maxBackgroundOpacity
+        authorizationSoundEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .authorizationSoundEnabled
+        ) ?? false
+        completionSoundEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .completionSoundEnabled
+        ) ?? false
+        authorizationSoundName = try container.decodeIfPresent(
+            String.self,
+            forKey: .authorizationSoundName
+        ) ?? Self.defaultAuthorizationSoundName
+        completionSoundName = try container.decodeIfPresent(
+            String.self,
+            forKey: .completionSoundName
+        ) ?? Self.defaultCompletionSoundName
     }
 
     enum CodingKeys: String, CodingKey {
@@ -75,6 +143,13 @@ public struct AppConfig: Codable, Equatable {
         case skippedUpdateVersion
         case lastUpdateCheckAt
         case lastLaunchedVersion
+        case expandedListHeight
+        case ballBackgroundOpacity
+        case listBackgroundOpacity
+        case authorizationSoundEnabled
+        case completionSoundEnabled
+        case authorizationSoundName
+        case completionSoundName
     }
 
     public static let `default` = AppConfig(
@@ -99,6 +174,17 @@ public struct AppConfig: Codable, Equatable {
                 normalizedY: min(max(anchor.normalizedY, 0), 1)
             )
         }
+        if let height = config.expandedListHeight {
+            config.expandedListHeight = min(max(height, Self.minListHeight), Self.maxListHeight)
+        }
+        config.ballBackgroundOpacity = min(
+            max(config.ballBackgroundOpacity, Self.minBackgroundOpacity),
+            Self.maxBackgroundOpacity
+        )
+        config.listBackgroundOpacity = min(
+            max(config.listBackgroundOpacity, Self.minBackgroundOpacity),
+            Self.maxBackgroundOpacity
+        )
         return config
     }
 }

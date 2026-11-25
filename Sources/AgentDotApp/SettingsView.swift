@@ -9,6 +9,76 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
+                opacityRow(
+                    title: "悬浮球背景",
+                    value: viewModel.config.ballBackgroundOpacity
+                ) { newValue in
+                    var config = viewModel.config
+                    config.ballBackgroundOpacity = newValue
+                    update(config)
+                }
+                opacityRow(
+                    title: "列表面板背景",
+                    value: viewModel.config.listBackgroundOpacity
+                ) { newValue in
+                    var config = viewModel.config
+                    config.listBackgroundOpacity = newValue
+                    update(config)
+                }
+                Text("仅背景变透明，文字和按钮保持清晰；最小 10%。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } header: {
+                Text("外观")
+            }
+
+            Section {
+                Toggle(
+                    "等待授权时播放提示音",
+                    isOn: Binding(
+                        get: { viewModel.config.authorizationSoundEnabled },
+                        set: { enabled in
+                            var config = viewModel.config
+                            config.authorizationSoundEnabled = enabled
+                            update(config)
+                        }
+                    )
+                )
+                soundPicker(
+                    title: "等待授权声音",
+                    selection: viewModel.config.authorizationSoundName,
+                    enabled: viewModel.config.authorizationSoundEnabled
+                ) { name in
+                    var config = viewModel.config
+                    config.authorizationSoundName = name
+                    update(config)
+                }
+
+                Toggle(
+                    "任务完成时播放提示音",
+                    isOn: Binding(
+                        get: { viewModel.config.completionSoundEnabled },
+                        set: { enabled in
+                            var config = viewModel.config
+                            config.completionSoundEnabled = enabled
+                            update(config)
+                        }
+                    )
+                )
+                soundPicker(
+                    title: "任务完成声音",
+                    selection: viewModel.config.completionSoundName,
+                    enabled: viewModel.config.completionSoundEnabled
+                ) { name in
+                    var config = viewModel.config
+                    config.completionSoundName = name
+                    update(config)
+                }
+            } header: {
+                Text("提醒")
+            }
+
+            Section {
                 Stepper(
                     value: Binding(
                         get: { viewModel.config.thresholdN },
@@ -110,6 +180,59 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 420, height: 480)
         .padding(12)
+    }
+
+    private func opacityRow(
+        title: String,
+        value: Double,
+        onChange: @escaping (Double) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text("\(Int(value.rounded()))%")
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+            }
+            Slider(
+                value: Binding(
+                    get: { value },
+                    set: { onChange($0) }
+                ),
+                in: AppConfig.minBackgroundOpacity...AppConfig.maxBackgroundOpacity,
+                step: 1
+            )
+        }
+    }
+
+    private func soundPicker(
+        title: String,
+        selection: String,
+        enabled: Bool,
+        onChange: @escaping (String) -> Void
+    ) -> some View {
+        Picker(
+            title,
+            selection: Binding(
+                get: { selection },
+                set: { onChange($0) }
+            )
+        ) {
+            ForEach(soundOptions(current: selection), id: \.self) { name in
+                Text(name).tag(name)
+            }
+        }
+        .pickerStyle(.menu)
+        .disabled(!enabled)
+    }
+
+    private func soundOptions(current: String) -> [String] {
+        var names = SystemSoundPlayer.soundNames
+        if !names.contains(current) {
+            names.insert(current, at: 0)
+        }
+        return names
     }
 
     private func update(_ config: AppConfig) {

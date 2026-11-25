@@ -8,6 +8,7 @@ struct BallView: View {
     let aggregate: AggregateVisualState
     let acknowledgedSessionIDs: Set<String>
     let hasUpdate: Bool
+    let backgroundOpacity: Double
 
     private var limit: Int {
         min(max(threshold, 1), 9)
@@ -28,8 +29,10 @@ struct BallView: View {
             ZStack {
                 Circle()
                     .fill(.ultraThinMaterial)
+                    .opacity(backgroundOpacity)
                 Circle()
                     .fill(glowColor.opacity(0.10))
+                    .opacity(backgroundOpacity)
                 Circle()
                     .strokeBorder(
                         borderColor,

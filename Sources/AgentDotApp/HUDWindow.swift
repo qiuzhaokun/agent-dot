@@ -3,10 +3,141 @@ import SwiftUI
 import Combine
 import AgentDotCore
 
+/// 让无边框面板支持自由拖动。
+/// NSHostingView 会接管鼠标事件，`isMovableByWindowBackground` 对 SwiftUI 内容不生效，
+/// 因此这里用拖拽过程中的全局鼠标位置手动移动窗口。
+final class WindowDragController {
+    private weak var panel: NSWindow?
+    private var startMouse: NSPoint?
+    private var startOrigin: NSPoint?
+    private(set) var totalDistance: CGFloat = 0
+
+    init(panel: NSWindow) {
+        self.panel = panel
+    }
+
+    func begin() {
+        guard let panel else { return }
+        startMouse = NSEvent.mouseLocation
+        startOrigin = panel.frame.origin
+        totalDistance = 0
+    }
+
+    func update() {
+        guard let panel, let startMouse, let startOrigin else { return }
+        let mouse = NSEvent.mouseLocation
+        panel.setFrameOrigin(
+            NSPoint(
+                x: startOrigin.x + mouse.x - startMouse.x,
+                y: startOrigin.y + mouse.y - startMouse.y
+            )
+        )
+        totalDistance = max(totalDistance, hypot(mouse.x - startMouse.x, mouse.y - startMouse.y))
+    }
+
+    func end() {
+        startMouse = nil
+        startOrigin = nil
+    }
+}
+
+/// 拖拽展开面板底边调整列表区域高度；面板顶部保持不动。
+final class ListResizeController {
+    private weak var panel: NSWindow?
+    var listHeightProvider: (() -> CGFloat)?
+    var chromeHeightProvider: (() -> CGFloat)?
+    var maxTotalHeightProvider: (() -> CGFloat)?
+    var onLiveChange: ((CGFloat) -> Void)?
+    /// 拖拽真正改变高度后才回调新高度；只是点击手柄时回调 nil。
+    var onCommit: ((CGFloat?) -> Void)?
+
+    private var startMouseY: CGFloat?
+    private var startTop: CGFloat = 0
+    private var startListHeight: CGFloat = 0
+    private var chromeHeight: CGFloat = 0
+    private var maxTotalHeight: CGFloat = 0
+    private var didResize = false
+    private(set) var currentListHeight: CGFloat = 0
+
+    init(panel: NSWindow) {
+        self.panel = panel
+    }
+
+    func begin() {
+        guard let panel,
+              let listHeight = listHeightProvider?(),
+              let chrome = chromeHeightProvider?() else {
+            return
+        }
+        startMouseY = NSEvent.mouseLocation.y
+        startTop = panel.frame.maxY
+        startListHeight = listHeight
+        chromeHeight = chrome
+        maxTotalHeight = maxTotalHeightProvider?() ?? 900
+        if let screen = panel.screen ?? NSScreen.main {
+            let visible = screen.visibleFrame
+            maxTotalHeight = min(
+                maxTotalHeight,
+                max(240, startTop - visible.minY - 8)
+            )
+        }
+        currentListHeight = listHeight
+        didResize = false
+        onLiveChange?(listHeight)
+    }
+
+    func update() {
+        guard let panel, let startMouseY else { return }
+        let mouseY = NSEvent.mouseLocation.y
+        let minHeight = CGFloat(AppConfig.minListHeight)
+        let maxHeight = CGFloat(AppConfig.maxListHeight)
+        var height = startListHeight + (startMouseY - mouseY)
+        height = min(max(height.rounded(), minHeight), maxHeight)
+        let available = maxTotalHeight - chromeHeight
+        if available >= minHeight {
+            height = min(height, available)
+        }
+        if abs(height - startListHeight) > 0.5 {
+            didResize = true
+        }
+        currentListHeight = height
+        onLiveChange?(height)
+        let total = chromeHeight + height
+        panel.setFrame(
+            NSRect(
+                x: panel.frame.minX,
+                y: startTop - total,
+                width: panel.frame.width,
+                height: total
+            ),
+            display: true
+        )
+    }
+
+    func end() {
+        guard startMouseY != nil else { return }
+        startMouseY = nil
+        onCommit?(didResize ? currentListHeight : nil)
+    }
+}
+
 final class HUDWindow: NSObject, NSWindowDelegate {
+    private enum Layout {
+        static let collapsedSize: CGFloat = 56
+        static let panelWidth: CGFloat = 340
+        static let headerHeight: CGFloat = 44
+        static let panelPadding: CGFloat = 16
+        static let emptyListHeight: CGFloat = 150
+        static let resizeHandleHeight: CGFloat = 10
+    }
+
     private let panel: NSPanel
     private let viewModel: HUDViewModel
     private let configStore: ConfigStore
+    private let dragController: WindowDragController
+    private let listResizeController: ListResizeController
+    private var liveListHeight: CGFloat?
+    private var isResizingListHeight = false
     private var cancellables = Set<AnyCancellable>()
     private var moveWorkItem: DispatchWorkItem?
     private var screenObserver: NSObjectProtocol?
@@ -19,13 +150,17 @@ final class HUDWindow: NSObject, NSWindowDelegate {
     ) {
         self.viewModel = viewModel
         self.configStore = configStore
-        self.panel = NSPanel(
+        let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 56, height: 56),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
+        self.panel = panel
+        self.dragController = WindowDragController(panel: panel)
+        self.listResizeController = ListResizeController(panel: panel)
         super.init()
+        wireResizeController()
 
         panel.level = .statusBar
         panel.collectionBehavior = [
@@ -54,6 +189,8 @@ final class HUDWindow: NSObject, NSWindowDelegate {
 
         let root = HUDView(
             viewModel: viewModel,
+            dragController: dragController,
+            listResizeController: listResizeController,
             onOpenSettings: onOpenSettings,
             onJump: onJump
         )
@@ -68,6 +205,40 @@ final class HUDWindow: NSObject, NSWindowDelegate {
     deinit {
         if let screenObserver {
             NotificationCenter.default.removeObserver(screenObserver)
+        }
+    }
+
+    private func wireResizeController() {
+        listResizeController.listHeightProvider = { [weak self] in
+            self?.currentListHeight ?? 0
+        }
+        listResizeController.chromeHeightProvider = { [weak self] in
+            self?.chromeHeight() ?? 0
+        }
+        listResizeController.maxTotalHeightProvider = { [weak self] in
+            self?.maxPanelHeight() ?? 900
+        }
+        listResizeController.onLiveChange = { [weak self] height in
+            guard let self else { return }
+            self.liveListHeight = height
+            self.isResizingListHeight = true
+        }
+        listResizeController.onCommit = { [weak self] height in
+            guard let self else { return }
+            guard let height else {
+                self.liveListHeight = nil
+                self.resize(expanded: true)
+                self.isResizingListHeight = false
+                return
+            }
+            self.liveListHeight = height
+            var config = self.viewModel.config
+            config.expandedListHeight = Double(height)
+            self.viewModel.updateConfig(config)
+            try? self.configStore.save(config)
+            self.liveListHeight = nil
+            self.resize(expanded: true)
+            self.isResizingListHeight = false
         }
     }
 
@@ -109,33 +280,73 @@ final class HUDWindow: NSObject, NSWindowDelegate {
             .store(in: &cancellables)
     }
 
-    private func desiredSize(expanded: Bool) -> NSSize {
-        guard expanded else {
-            return NSSize(width: 56, height: 56)
+    /// 头部、横幅、拖拽手柄和内边距占用的固定高度。
+    private func chromeHeight() -> CGFloat {
+        var height = Layout.headerHeight + Layout.panelPadding
+        if !viewModel.hooksInstalled {
+            height += 30
         }
-        let rows = CGFloat(min(max(viewModel.sessions.count, 1), 6))
-        let hooksBanner: CGFloat = viewModel.hooksInstalled ? 0 : 30
-        let jumpBanner: CGFloat = viewModel.jumpStatus == nil ? 0 : 40
-        var extraBanner: CGFloat = 0
+        if viewModel.jumpStatus != nil {
+            height += 40
+        }
         if viewModel.needsInstall {
-            extraBanner += viewModel.installStatus.isEmpty ? 44 : 58
+            height += viewModel.installStatus.isEmpty ? 44 : 58
         }
         if viewModel.justUpdated {
-            extraBanner += 52
+            height += 52
         }
         switch viewModel.updateState {
         case .checking, .available, .verifying, .installing, .failed:
-            extraBanner += 44
+            height += 44
         case .downloading:
-            extraBanner += 52
+            height += 52
         case .idle, .upToDate:
             break
         }
-        let bodyHeight: CGFloat = viewModel.sessions.isEmpty ? 150 : rows * 64
-        let contentHeight: CGFloat =
-            44 + hooksBanner + jumpBanner + extraBanner + bodyHeight + 16
-        let height = min(CGFloat(440), contentHeight)
-        return NSSize(width: 340, height: height)
+        if !viewModel.sessions.isEmpty {
+            height += Layout.resizeHandleHeight
+        }
+        return height
+    }
+
+    /// 展开面板中列表区域的高度（不含拖拽手柄、头部和横幅）。
+    private var currentListHeight: CGFloat {
+        let minHeight = CGFloat(AppConfig.minListHeight)
+        let maxHeight = CGFloat(AppConfig.maxListHeight)
+        let height: CGFloat
+        if let liveListHeight {
+            height = liveListHeight
+        } else if let saved = viewModel.config.expandedListHeight {
+            height = CGFloat(saved)
+        } else {
+            let rows = min(max(viewModel.sessions.count, 1), 5)
+            height = CGFloat(rows) * CGFloat(AppConfig.listRowHeight)
+        }
+        let screenMax = max(
+            minHeight,
+            maxPanelHeight() - chromeHeight()
+        )
+        return min(max(height, minHeight), min(maxHeight, screenMax))
+    }
+
+    private func maxPanelHeight() -> CGFloat {
+        let screen = panel.screen ?? NSScreen.main
+        guard let visible = screen?.visibleFrame else { return 900 }
+        return max(240, visible.height - 40)
+    }
+
+    private func desiredSize(expanded: Bool) -> NSSize {
+        guard expanded else {
+            return NSSize(
+                width: Layout.collapsedSize,
+                height: Layout.collapsedSize
+            )
+        }
+        let listHeight: CGFloat = viewModel.sessions.isEmpty
+            ? Layout.emptyListHeight
+            : currentListHeight
+        let height = min(chromeHeight() + listHeight, maxPanelHeight())
+        return NSSize(width: Layout.panelWidth, height: height)
     }
 
     private func resize(expanded: Bool) {
@@ -198,6 +409,7 @@ final class HUDWindow: NSObject, NSWindowDelegate {
     }
 
     func windowDidMove(_ notification: Notification) {
+        guard !isResizingListHeight else { return }
         moveWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }

@@ -17,7 +17,7 @@ struct SessionRowView: View {
                 statusDot
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(session.projectName)
+                    Text(session.displayName ?? session.projectName)
                         .font(.system(size: 13, weight: .medium))
                         .lineLimit(1)
                     Text(subtitle(now: now))
@@ -43,6 +43,10 @@ struct SessionRowView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .frame(height: 64)
+        .overlay(alignment: .bottom) {
+            // 分隔线画在行内部，保证每行严格占用 64pt，列表高度可按行数精确计算。
+            Divider().opacity(0.2).padding(.leading, 14)
+        }
         .contentShape(Rectangle())
         .onTapGesture(perform: onJump)
         .contextMenu {

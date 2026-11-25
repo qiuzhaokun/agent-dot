@@ -11,6 +11,7 @@ final class SessionStore: ObservableObject {
     private let uiStore: UIStateStore
     private let liveness: ProcessLivenessProviding
     private let probe: ActiveTerminalProbing
+    private let nameResolver: SessionNameResolver
     private let pollInterval: TimeInterval
 
     private var timer: Timer?
@@ -32,13 +33,15 @@ final class SessionStore: ObservableObject {
         uiStateURL: URL,
         pollInterval: TimeInterval = 0.5,
         liveness: ProcessLivenessProviding = LiveProcessLiveness(),
-        probe: ActiveTerminalProbing = LiveActiveTerminalProbe()
+        probe: ActiveTerminalProbing = LiveActiveTerminalProbe(),
+        nameResolver: SessionNameResolver = SessionNameResolver()
     ) {
         self.fileStore = SessionFileStore(directory: sessionsDirectory)
         self.uiStore = UIStateStore(fileURL: uiStateURL)
         self.pollInterval = pollInterval
         self.liveness = liveness
         self.probe = probe
+        self.nameResolver = nameResolver
     }
 
     func start() {
@@ -94,7 +97,13 @@ final class SessionStore: ObservableObject {
 
     private func tick() {
         let now = Int64(Date().timeIntervalSince1970)
-        let all = fileStore.loadAll()
+        let stored = fileStore.loadAll()
+        let displayNames = nameResolver.resolveNames(for: stored)
+        let all = stored.map { state -> SessionState in
+            var copy = state
+            copy.displayName = displayNames[state.sessionID]
+            return copy
+        }
         let ids = Set(all.map { $0.sessionID })
         let shouldCheckAlive = now - lastAliveCheck >= 5 || aliveCache.isEmpty
         if shouldCheckAlive {

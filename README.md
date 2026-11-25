@@ -128,13 +128,18 @@ AGENTDOT_SETTINGS_PATH="$TMP/settings.json" .build/debug/dot-hook install-hooks
    ```
    产物在 `dist/`；`latest.json` 签名可用 `swift scripts/verify-update.swift ...` 校验。
 
+## 未来支持（Roadmap，尚未实现）
+
+- [ ] Apple Watch 提醒
+- [ ] 系统通知提醒
+
 ## 已知限制
 
 - **Ghostty 精确跳转/消警**：依赖 `GHOSTTY_SURFACE_ID` 与 AppleScript terminal `id` 一致；不一致时跳转退回按工作目录匹配，自动消警关闭（保留右键“忽略本次提醒”）。
 - **Kaku 活动面板**：依赖 `kaku cli list --format json` 的 `is_active` / `pane_id` 字段；字段不可用时不自动消警。
 - **unknown / headless 会话**（如 `claude -p` 无 TTY）：列表显示、允许提醒，但点击不跳转。
 - **tmux**：只跳到外层终端标签页；tmux pane 切换未实现。
-- 没有提示音、系统通知、历史统计、云端同步。
+- 系统通知、历史统计、云端同步尚未实现；提示音已支持，可在「设置 → 提醒」中开启。
 - 授权提示后没有“已批准”事件，红闪的停止依赖“精确活动标签 + 消警”；状态本身仍是等待授权，直到 Claude 的后续 hook 事件证明已处理。
 - **ad-hoc 签名**：首次从 DMG 打开需要右键一次；没有 notarization，Gatekeeper 会提示。
 - **自动更新位置**：只保证 `~/Applications` 内可替换；`/Applications` 会提示移动，不自动更新。
@@ -145,4 +150,4 @@ AGENTDOT_SETTINGS_PATH="$TMP/settings.json" .build/debug/dot-hook install-hooks
 
 ## 验证
 
-核心逻辑有 88+ 个自动测试（状态机、锁、终端上下文、settings 合并、可见性/隐藏状态机、消警策略、Kaku active pane 解析、配置、语义版本/更新清单/Ed25519/替换回滚）。UI、四终端跳转、自动化权限需要在本机手工验证，步骤见技术方案 §12.3。
+核心逻辑有 107 个自动测试（状态机、锁、终端上下文、settings 合并、可见性/隐藏状态机、消警策略、Kaku active pane 解析、会话名称解析、声音提醒调度、配置、语义版本/更新清单/Ed25519/替换回滚）。UI、四终端跳转、自动化权限需要在本机手工验证，步骤见技术方案 §12.3。
