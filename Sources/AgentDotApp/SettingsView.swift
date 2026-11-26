@@ -125,7 +125,7 @@ struct SettingsView: View {
                         }
                     )
                 )
-                Text("开机自启在安装为 AgentDot.app 后生效。")
+                Text("开机自启在安装为 AgentDot.app 后生效；应用运行中开启不会立刻启动第二个实例，下次登录生效。")
                     .font(.caption)
                     .foregroundColor(.secondary)
             } header: {

@@ -1,5 +1,6 @@
 import Foundation
 import Darwin
+import AppKit
 
 enum LaunchAtLogin {
     static var plistURL: URL {
@@ -18,13 +19,13 @@ enum LaunchAtLogin {
             return false
         }
         return URL(fileURLWithPath: program).standardizedFileURL.path
-            == appPath.standardizedFileURL.path
+            == executableURL(for: appPath).path
     }
 
     static func enable(appPath: URL) throws {
         let plist: [String: Any] = [
             "Label": "dev.agentdot.app",
-            "ProgramArguments": [appPath.path],
+            "ProgramArguments": [executableURL(for: appPath).path],
             "RunAtLoad": true,
             "KeepAlive": false
         ]
@@ -39,13 +40,31 @@ enum LaunchAtLogin {
         )
         try data.write(to: plistURL, options: .atomic)
 
+        // 应用正在运行时不要把「开机自启」变成「立刻再启动一个实例」；
+        // 写入 plist 后，下次登录由 launchd 自动加载。
+        guard !isAppRunning else { return }
         _ = runLaunchctl(["bootout", "gui/\(getuid())", plistURL.path])
         _ = runLaunchctl(["bootstrap", "gui/\(getuid())", plistURL.path])
     }
 
     static func disable() throws {
-        _ = runLaunchctl(["bootout", "gui/\(getuid())", plistURL.path])
+        if !isAppRunning {
+            _ = runLaunchctl(["bootout", "gui/\(getuid())", plistURL.path])
+        }
         try? FileManager.default.removeItem(at: plistURL)
+    }
+
+    private static var isAppRunning: Bool {
+        !NSRunningApplication.runningApplications(
+            withBundleIdentifier: Bundle.main.bundleIdentifier ?? "dev.agentdot.app"
+        ).isEmpty
+    }
+
+    private static func executableURL(for appPath: URL) -> URL {
+        let candidate = appPath.appendingPathComponent("Contents/MacOS/AgentDot")
+        return FileManager.default.isExecutableFile(atPath: candidate.path)
+            ? candidate.standardizedFileURL
+            : appPath.standardizedFileURL
     }
 
     @discardableResult

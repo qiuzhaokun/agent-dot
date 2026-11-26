@@ -18,6 +18,9 @@ swift build -c release --product dot-hook
 swift build -c release --product AgentDotUpdater
 
 APP="dist/AgentDot.app"
+mkdir -p dist
+# 本地做 release 构建时也不要让 dist 副本被 Spotlight/Launchpad 收录。
+touch dist/.metadata_never_index
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
 cp .build/release/AgentDot "$APP/Contents/MacOS/AgentDot"

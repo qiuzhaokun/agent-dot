@@ -121,10 +121,74 @@ final class ListResizeController {
     }
 }
 
+/// 拖拽展开面板左边缘调整宽度；右边缘保持不动。
+final class PanelWidthResizeController {
+    private weak var panel: NSWindow?
+    var widthProvider: (() -> CGFloat)?
+    var onLiveChange: ((CGFloat) -> Void)?
+    /// 拖拽真正改变宽度后才回调新宽度；只是点击手柄时回调 nil。
+    var onCommit: ((CGFloat?) -> Void)?
+
+    private var startMouseX: CGFloat?
+    private var startRight: CGFloat = 0
+    private var startWidth: CGFloat = 0
+    private var currentWidth: CGFloat = 0
+    private var minWidth: CGFloat = 0
+    private var maxWidth: CGFloat = 0
+    private var didResize = false
+
+    init(panel: NSWindow) {
+        self.panel = panel
+    }
+
+    func begin() {
+        guard let panel, let width = widthProvider?() else { return }
+        let visible = (panel.screen ?? NSScreen.main)?.visibleFrame
+        startMouseX = NSEvent.mouseLocation.x
+        startRight = panel.frame.maxX
+        startWidth = width
+        minWidth = CGFloat(AppConfig.minPanelWidth)
+        let screenLimit = visible.map { startRight - $0.minX - 8 } ?? CGFloat(AppConfig.maxPanelWidth)
+        maxWidth = max(
+            minWidth,
+            min(CGFloat(AppConfig.maxPanelWidth), screenLimit)
+        )
+        currentWidth = width
+        didResize = false
+        onLiveChange?(width)
+    }
+
+    func update() {
+        guard let panel, let startMouseX else { return }
+        let delta = startMouseX - NSEvent.mouseLocation.x
+        let width = min(max((startWidth + delta).rounded(), minWidth), maxWidth)
+        if abs(width - startWidth) > 0.5 {
+            didResize = true
+        }
+        currentWidth = width
+        panel.setFrame(
+            NSRect(
+                x: startRight - width,
+                y: panel.frame.minY,
+                width: width,
+                height: panel.frame.height
+            ),
+            display: true
+        )
+        onLiveChange?(width)
+    }
+
+    func end() {
+        guard startMouseX != nil else { return }
+        startMouseX = nil
+        onCommit?(didResize ? currentWidth : nil)
+    }
+}
+
 final class HUDWindow: NSObject, NSWindowDelegate {
     private enum Layout {
         static let collapsedSize: CGFloat = 56
-        static let panelWidth: CGFloat = 340
+        static let defaultPanelWidth: CGFloat = 340
         static let headerHeight: CGFloat = 44
         static let panelPadding: CGFloat = 16
         static let emptyListHeight: CGFloat = 150
@@ -136,8 +200,11 @@ final class HUDWindow: NSObject, NSWindowDelegate {
     private let configStore: ConfigStore
     private let dragController: WindowDragController
     private let listResizeController: ListResizeController
+    private let panelWidthResizeController: PanelWidthResizeController
     private var liveListHeight: CGFloat?
+    private var livePanelWidth: CGFloat?
     private var isResizingListHeight = false
+    private var isResizingWidth = false
     private var cancellables = Set<AnyCancellable>()
     private var moveWorkItem: DispatchWorkItem?
     private var screenObserver: NSObjectProtocol?
@@ -159,6 +226,7 @@ final class HUDWindow: NSObject, NSWindowDelegate {
         self.panel = panel
         self.dragController = WindowDragController(panel: panel)
         self.listResizeController = ListResizeController(panel: panel)
+        self.panelWidthResizeController = PanelWidthResizeController(panel: panel)
         super.init()
         wireResizeController()
 
@@ -171,7 +239,9 @@ final class HUDWindow: NSObject, NSWindowDelegate {
         ]
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        // 圆点和展开面板都使用 SwiftUI 自绘边框；关闭原生窗口阴影，
+        // 避免透明窗口在圆形/圆角外再投出一圈模糊的矩形影子。
+        panel.hasShadow = false
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = true
         panel.isMovableByWindowBackground = true
@@ -191,6 +261,7 @@ final class HUDWindow: NSObject, NSWindowDelegate {
             viewModel: viewModel,
             dragController: dragController,
             listResizeController: listResizeController,
+            panelWidthResizeController: panelWidthResizeController,
             onOpenSettings: onOpenSettings,
             onJump: onJump
         )
@@ -239,6 +310,32 @@ final class HUDWindow: NSObject, NSWindowDelegate {
             self.liveListHeight = nil
             self.resize(expanded: true)
             self.isResizingListHeight = false
+        }
+
+        panelWidthResizeController.widthProvider = { [weak self] in
+            self?.currentPanelWidth ?? Layout.defaultPanelWidth
+        }
+        panelWidthResizeController.onLiveChange = { [weak self] width in
+            guard let self else { return }
+            self.livePanelWidth = width
+            self.isResizingWidth = true
+        }
+        panelWidthResizeController.onCommit = { [weak self] width in
+            guard let self else { return }
+            guard let width else {
+                self.livePanelWidth = nil
+                self.resize(expanded: true)
+                self.isResizingWidth = false
+                return
+            }
+            self.livePanelWidth = width
+            var config = self.viewModel.config
+            config.expandedPanelWidth = Double(width)
+            self.viewModel.updateConfig(config)
+            try? self.configStore.save(config)
+            self.livePanelWidth = nil
+            self.resize(expanded: true)
+            self.isResizingWidth = false
         }
     }
 
@@ -335,6 +432,25 @@ final class HUDWindow: NSObject, NSWindowDelegate {
         return max(240, visible.height - 40)
     }
 
+    private var currentPanelWidth: CGFloat {
+        let width = livePanelWidth
+            ?? viewModel.config.expandedPanelWidth.map { CGFloat($0) }
+            ?? Layout.defaultPanelWidth
+        return min(max(width, CGFloat(AppConfig.minPanelWidth)), CGFloat(AppConfig.maxPanelWidth))
+    }
+
+    private func maxPanelWidthForScreen() -> CGFloat {
+        guard let visible = (panel.screen ?? NSScreen.main)?.visibleFrame else {
+            return CGFloat(AppConfig.maxPanelWidth)
+        }
+        let screenLimit = visible.width - 16
+        let anchorLimit = panel.frame.maxX - visible.minX - 8
+        return max(
+            CGFloat(AppConfig.minPanelWidth),
+            min(CGFloat(AppConfig.maxPanelWidth), min(screenLimit, anchorLimit))
+        )
+    }
+
     private func desiredSize(expanded: Bool) -> NSSize {
         guard expanded else {
             return NSSize(
@@ -346,7 +462,8 @@ final class HUDWindow: NSObject, NSWindowDelegate {
             ? Layout.emptyListHeight
             : currentListHeight
         let height = min(chromeHeight() + listHeight, maxPanelHeight())
-        return NSSize(width: Layout.panelWidth, height: height)
+        let width = min(currentPanelWidth, maxPanelWidthForScreen())
+        return NSSize(width: width, height: height)
     }
 
     private func resize(expanded: Bool) {
@@ -409,7 +526,7 @@ final class HUDWindow: NSObject, NSWindowDelegate {
     }
 
     func windowDidMove(_ notification: Notification) {
-        guard !isResizingListHeight else { return }
+        guard !isResizingListHeight, !isResizingWidth else { return }
         moveWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }

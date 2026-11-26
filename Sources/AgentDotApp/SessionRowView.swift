@@ -97,7 +97,7 @@ struct SessionRowView: View {
         case SessionAttention.planApproval:
             return "待批准"
         case SessionAttention.externalWait:
-            return "等待外部"
+            return "需要授权"
         default:
             return "等待授权"
         }
@@ -155,7 +155,7 @@ struct SessionRowView: View {
             let reason: String
             if session.notificationType == SessionAttention.externalWait,
                let tool = session.currentTool {
-                reason = "\(tool) 等待外部确认"
+                reason = "\(tool) 需要授权"
             } else {
                 reason = attentionLabel ?? "等待授权"
             }

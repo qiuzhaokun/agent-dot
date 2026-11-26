@@ -38,6 +38,20 @@ func runAppConfigTests() {
         expectEqual(config.clamped().expandedListHeight, 320)
     }
 
+    runTest("AppConfig expandedPanelWidth defaults to nil") {
+        expectNil(AppConfig.default.expandedPanelWidth)
+    }
+
+    runTest("AppConfig clamps expandedPanelWidth") {
+        var config = AppConfig.default
+        config.expandedPanelWidth = 100
+        expectEqual(config.clamped().expandedPanelWidth, AppConfig.minPanelWidth)
+        config.expandedPanelWidth = 1000
+        expectEqual(config.clamped().expandedPanelWidth, AppConfig.maxPanelWidth)
+        config.expandedPanelWidth = 420
+        expectEqual(config.clamped().expandedPanelWidth, 420)
+    }
+
     runTest("AppConfig background opacity defaults to opaque and clamps to 10 through 100") {
         expectEqual(AppConfig.default.ballBackgroundOpacity, 100)
         expectEqual(AppConfig.default.listBackgroundOpacity, 100)
@@ -73,6 +87,7 @@ func runAppConfigTests() {
         config.thresholdN = 7
         config.launchAtLogin = false
         config.expandedListHeight = 384
+        config.expandedPanelWidth = 420
         config.ballBackgroundOpacity = 40
         config.listBackgroundOpacity = 60
         config.authorizationSoundEnabled = true
@@ -83,6 +98,7 @@ func runAppConfigTests() {
         expectEqual(store.load().thresholdN, 7)
         expectEqual(store.load().launchAtLogin, false)
         expectEqual(store.load().expandedListHeight, 384)
+        expectEqual(store.load().expandedPanelWidth, 420)
         expectEqual(store.load().ballBackgroundOpacity, 40)
         expectEqual(store.load().listBackgroundOpacity, 60)
         expectEqual(store.load().authorizationSoundEnabled, true)

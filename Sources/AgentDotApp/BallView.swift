@@ -28,7 +28,8 @@ struct BallView: View {
             let phase = reduceMotion ? 0.5 : (sin(time * .pi / 0.8) + 1.0) / 2.0
             ZStack {
                 Circle()
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.clear)
+                    .background(.ultraThinMaterial, in: Circle())
                     .opacity(backgroundOpacity)
                 Circle()
                     .fill(glowColor.opacity(0.10))
@@ -54,7 +55,7 @@ struct BallView: View {
                 }
             }
         }
-        .shadow(color: .black.opacity(0.28), radius: 8, y: 3)
+        .clipShape(Circle())
     }
 
     @ViewBuilder

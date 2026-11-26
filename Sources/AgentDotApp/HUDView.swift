@@ -6,10 +6,12 @@ struct HUDView: View {
     @ObservedObject var viewModel: HUDViewModel
     let dragController: WindowDragController
     let listResizeController: ListResizeController
+    let panelWidthResizeController: PanelWidthResizeController
     let onOpenSettings: () -> Void
     let onJump: (SessionState) -> Void
     @State private var isDraggingWindow = false
     @State private var isResizingList = false
+    @State private var isResizingWidth = false
 
     var body: some View {
         Group {
@@ -126,13 +128,13 @@ struct HUDView: View {
                 .opacity(viewModel.config.listBackgroundOpacity / 100)
         )
         .overlay(
-            // 玻璃拟态描边：顶部亮、底部淡。
+            // 单层清晰描边，不再叠加阴影/高光，避免最外圈出现透明毛边。
             RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
                 .strokeBorder(
                     LinearGradient(
                         colors: [
-                            Color.primary.opacity(0.16),
-                            Color.primary.opacity(0.03)
+                            Color.primary.opacity(0.24),
+                            Color.primary.opacity(0.10)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -140,31 +142,12 @@ struct HUDView: View {
                     lineWidth: 1
                 )
         )
-        .overlay(
-            // 顶部内高光，增强玻璃边缘。
-            RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.20), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 1
-                )
-                .mask(
-                    LinearGradient(
-                        colors: [.white, .clear],
-                        startPoint: .top,
-                        endPoint: .center
-                    )
-                )
-                .allowsHitTesting(false)
-        )
+        .overlay(alignment: .leading) {
+            widthResizeHandle
+        }
         .clipShape(
             RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
         )
-        .shadow(color: .black.opacity(0.24), radius: 18, y: 6)
-        .padding(6)
     }
 
     private var panelCornerRadius: CGFloat { 18 }
@@ -358,6 +341,43 @@ struct HUDView: View {
                 listResizeController.end()
                 isResizingList = false
             }
+    }
+
+    private func widthResizeGesture() -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { _ in
+                if !isResizingWidth {
+                    isResizingWidth = true
+                    panelWidthResizeController.begin()
+                }
+                panelWidthResizeController.update()
+            }
+            .onEnded { _ in
+                panelWidthResizeController.end()
+                isResizingWidth = false
+            }
+    }
+
+    private var widthResizeHandle: some View {
+        ZStack {
+            Color.clear
+            Capsule()
+                .fill(Color.primary.opacity(0.18))
+                .frame(width: 3, height: 26)
+        }
+        .frame(width: 10)
+        .frame(maxHeight: .infinity)
+        .padding(.bottom, 10)
+        .contentShape(Rectangle())
+        .gesture(widthResizeGesture())
+        .onHover { hovering in
+            if hovering {
+                NSCursor.resizeLeftRight.set()
+            } else {
+                NSCursor.arrow.set()
+            }
+        }
+        .help("拖动调整面板宽度")
     }
 
     private var resizeHandle: some View {

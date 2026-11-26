@@ -3,7 +3,7 @@
 AgentDot 是一个 macOS 置顶悬浮球，聚合 Claude Code CLI 会话状态：
 
 - 运行中显示绿色跑马灯；
-- 需要你介入时圆点和进度条红色脉冲：权限提示、Claude 提问（AskUserQuestion / 计划批准）、MCP elicitation；工具超过 20 秒未返回时提示可能正在等待系统/IDE 授权；Stop 时检测纯文本提问；
+- 需要你介入时圆点和进度条红色脉冲：权限提示、Claude 提问（AskUserQuestion / 计划批准）、MCP elicitation；工具超过 7 秒未返回时提示需要授权；Stop 时检测纯文本提问；
 - 点击会话行跳转到 iTerm2 / Terminal / Kaku / Ghostty 对应标签页或面板；
 - 精确到标签页/面板的消警：只有该会话所在标签页成为活动标签才停止脉冲（外部等待和纯文本提问需手动忽略）；
 - 收起态 ≤N 显示彩色小点，>N 显示数字（N 默认 5，范围 1–9）；
@@ -143,7 +143,7 @@ AGENTDOT_SETTINGS_PATH="$TMP/settings.json" .build/debug/dot-hook install-hooks
 - **unknown / headless 会话**（如 `claude -p` 无 TTY）：列表显示、允许提醒，但点击不跳转。
 - **tmux**：只跳到外层终端标签页；tmux pane 切换未实现。
 - 系统通知、历史统计、云端同步尚未实现；提示音已支持，可在「设置 → 提醒」中开启。
-- **外部授权只能推测**：磁盘 TCC 弹窗、IDEA/数据库授权等发生在 Claude Code 之外，AgentDot 只能通过「工具执行超过 20 秒未返回」提示可能等待外部处理；长时间编译/查询也会触发。纯文本提问通过 transcript 末尾启发式判断，可能误报。要做到 100% 精确需要 IDE 插件或辅助功能监听。
+- **外部授权只能推测**：磁盘 TCC 弹窗、IDEA/数据库授权等发生在 Claude Code 之外，AgentDot 只能通过「工具执行超过 7 秒未返回」提示需要授权；长时间编译/查询也会触发。纯文本提问通过 transcript 末尾启发式判断，可能误报。要做到 100% 精确需要 IDE 插件或辅助功能监听。
 - 授权提示后没有“已批准”事件，红闪的停止依赖“精确活动标签 + 消警”；状态本身仍是等待授权，直到 Claude 的后续 hook 事件证明已处理。
 - **ad-hoc 签名**：首次从 DMG 打开需要右键一次；没有 notarization，Gatekeeper 会提示。
 - **自动更新位置**：只保证 `~/Applications` 内可替换；`/Applications` 会提示移动，不自动更新。

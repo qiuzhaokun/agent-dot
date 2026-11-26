@@ -14,20 +14,36 @@ private func attentionSession(
 }
 
 func runSessionAttentionTests() {
-    runTest("SessionAttention external wait after twenty seconds") {
+    runTest("SessionAttention MCP external wait after seven seconds") {
         let running = attentionSession(
             state: .running,
             tool: "mcp__idea__execute_sql_query",
             lastActivityAt: 100
         )
-        let before = running.applyingExternalWaitAttention(now: 119)
+        let before = running.applyingExternalWaitAttention(now: 106)
         expectEqual(before.state, .running)
         expectNil(before.notificationType)
 
-        let after = running.applyingExternalWaitAttention(now: 120)
+        let after = running.applyingExternalWaitAttention(now: 107)
         expectEqual(after.state, .waitingPermission)
         expectEqual(after.notificationType, SessionAttention.externalWait)
         expectEqual(after.waitingSince, 100)
+    }
+
+    runTest("SessionAttention non-MCP external wait after seven seconds") {
+        let running = attentionSession(
+            state: .running,
+            tool: "Bash",
+            lastActivityAt: 100
+        )
+        expectEqual(
+            running.applyingExternalWaitAttention(now: 106).state,
+            .running
+        )
+        expectEqual(
+            running.applyingExternalWaitAttention(now: 107).state,
+            .waitingPermission
+        )
     }
 
     runTest("SessionAttention external wait requires a running tool") {

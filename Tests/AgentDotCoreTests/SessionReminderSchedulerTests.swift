@@ -238,17 +238,17 @@ func runSessionReminderSchedulerTests() {
         running.updatedAt = 100
         _ = updateScheduler(&scheduler, sessions: [running], now: 100)
 
-        let external = running.applyingExternalWaitAttention(now: 120)
+        let external = running.applyingExternalWaitAttention(now: 107)
         expectEqual(external.state, .waitingPermission)
         expectEqual(
-            updateScheduler(&scheduler, sessions: [external], now: 120),
+            updateScheduler(&scheduler, sessions: [external], now: 107),
             [.authorization(sessionID: "j")]
         )
         expect(
-            updateScheduler(&scheduler, sessions: [external], now: 130).isEmpty
+            updateScheduler(&scheduler, sessions: [external], now: 117).isEmpty
         )
         expect(
-            updateScheduler(&scheduler, sessions: [external], now: 140).isEmpty
+            updateScheduler(&scheduler, sessions: [external], now: 127).isEmpty
         )
     }
 

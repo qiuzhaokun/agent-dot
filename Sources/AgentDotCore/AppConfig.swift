@@ -19,6 +19,10 @@ public struct AppConfig: Codable, Equatable {
     public static let minListHeight: Double = listRowHeight
     /// 列表区域最大高度：9 行。
     public static let maxListHeight: Double = listRowHeight * 9
+    /// 展开面板最小宽度。
+    public static let minPanelWidth: Double = 280
+    /// 展开面板最大宽度；实际还会受当前屏幕宽度限制。
+    public static let maxPanelWidth: Double = 640
     /// 背景透明度下限：保留最小可见度，避免完全隐身。
     public static let minBackgroundOpacity: Double = 10
     public static let maxBackgroundOpacity: Double = 100
@@ -35,6 +39,8 @@ public struct AppConfig: Codable, Equatable {
     public var lastLaunchedVersion: String?
     /// 用户拖拽设置过的列表高度；nil 表示按会话数自动取 min(数量, 5) 行。
     public var expandedListHeight: Double?
+    /// 用户拖拽设置过的面板宽度；nil 表示使用默认宽度。
+    public var expandedPanelWidth: Double?
     /// 悬浮球背景透明度（百分比，10–100）。
     public var ballBackgroundOpacity: Double
     /// 展开面板背景透明度（百分比，10–100）。
@@ -58,6 +64,7 @@ public struct AppConfig: Codable, Equatable {
         lastUpdateCheckAt: Int64? = nil,
         lastLaunchedVersion: String? = nil,
         expandedListHeight: Double? = nil,
+        expandedPanelWidth: Double? = nil,
         ballBackgroundOpacity: Double = AppConfig.maxBackgroundOpacity,
         listBackgroundOpacity: Double = AppConfig.maxBackgroundOpacity,
         authorizationSoundEnabled: Bool = false,
@@ -74,6 +81,7 @@ public struct AppConfig: Codable, Equatable {
         self.lastUpdateCheckAt = lastUpdateCheckAt
         self.lastLaunchedVersion = lastLaunchedVersion
         self.expandedListHeight = expandedListHeight
+        self.expandedPanelWidth = expandedPanelWidth
         self.ballBackgroundOpacity = ballBackgroundOpacity
         self.listBackgroundOpacity = listBackgroundOpacity
         self.authorizationSoundEnabled = authorizationSoundEnabled
@@ -107,6 +115,10 @@ public struct AppConfig: Codable, Equatable {
         expandedListHeight = try container.decodeIfPresent(
             Double.self,
             forKey: .expandedListHeight
+        )
+        expandedPanelWidth = try container.decodeIfPresent(
+            Double.self,
+            forKey: .expandedPanelWidth
         )
         ballBackgroundOpacity = try container.decodeIfPresent(
             Double.self,
@@ -144,6 +156,7 @@ public struct AppConfig: Codable, Equatable {
         case lastUpdateCheckAt
         case lastLaunchedVersion
         case expandedListHeight
+        case expandedPanelWidth
         case ballBackgroundOpacity
         case listBackgroundOpacity
         case authorizationSoundEnabled
@@ -176,6 +189,9 @@ public struct AppConfig: Codable, Equatable {
         }
         if let height = config.expandedListHeight {
             config.expandedListHeight = min(max(height, Self.minListHeight), Self.maxListHeight)
+        }
+        if let width = config.expandedPanelWidth {
+            config.expandedPanelWidth = min(max(width, Self.minPanelWidth), Self.maxPanelWidth)
         }
         config.ballBackgroundOpacity = min(
             max(config.ballBackgroundOpacity, Self.minBackgroundOpacity),

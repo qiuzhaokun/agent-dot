@@ -15,8 +15,8 @@ public enum SessionAttention {
     public static let elicitationURLDialog = "elicitation_url_dialog"
     public static let workerPermissionPrompt = "worker_permission_prompt"
 
-    /// 工具执行超过该秒数仍未返回时提示可能等待外部授权。
-    public static let externalWaitThreshold: Int64 = 20
+    /// 工具执行超过该秒数仍未返回时提示可能正在等待授权。
+    public static let externalWaitThreshold: Int64 = 7
 
     /// 这些状态不依赖「终端标签是否激活」自动消警，必须等工具结束或用户手动忽略。
     public static func requiresManualAcknowledgment(_ notificationType: String?) -> Bool {
