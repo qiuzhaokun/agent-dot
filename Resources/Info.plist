@@ -15,14 +15,17 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.6</string>
+    <string>0.1.7</string>
     <key>CFBundleVersion</key>
-    <string>7</string>
+    <string>8</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSHighResolutionCapable</key>
+    <true/>
+    <!-- 保持旧版 Aqua 控件外观，避免 macOS 26 SDK 构建后滑块等控件变成 Liquid Glass 样式。 -->
+    <key>UIDesignRequiresCompatibility</key>
     <true/>
     <key>NSAppleEventsUsageDescription</key>
     <string>AgentDot 需要控制终端应用，以便在点击任务时跳转到对应窗口。</string>

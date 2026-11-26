@@ -91,7 +91,7 @@ case "uninstall-hooks":
 case "status":
     status()
 case "version":
-    print("AgentDot 0.1.6")
+    print("AgentDot 0.1.7")
     exit(0)
 default:
     FileHandle.standardError.write(Data((usage + "\n").utf8))
