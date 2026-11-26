@@ -303,10 +303,10 @@ final class HUDWindow: NSObject, NSWindowDelegate {
                 return
             }
             self.liveListHeight = height
-            var config = self.viewModel.config
-            config.expandedListHeight = Double(height)
+            let config = self.configStore.update {
+                $0.expandedListHeight = Double(height)
+            }
             self.viewModel.updateConfig(config)
-            try? self.configStore.save(config)
             self.liveListHeight = nil
             self.resize(expanded: true)
             self.isResizingListHeight = false
@@ -329,10 +329,10 @@ final class HUDWindow: NSObject, NSWindowDelegate {
                 return
             }
             self.livePanelWidth = width
-            var config = self.viewModel.config
-            config.expandedPanelWidth = Double(width)
+            let config = self.configStore.update {
+                $0.expandedPanelWidth = Double(width)
+            }
             self.viewModel.updateConfig(config)
-            try? self.configStore.save(config)
             self.livePanelWidth = nil
             self.resize(expanded: true)
             self.isResizingWidth = false
@@ -573,13 +573,12 @@ final class HUDWindow: NSObject, NSWindowDelegate {
         let frame = panel.frame
         let ballCenterX = frame.maxX - 28
         let ballCenterY = frame.maxY - 28
-        var config = viewModel.config
-        config.ballAnchor = BallAnchor(
+        let anchor = BallAnchor(
             screenID: screenID(screen),
             normalizedX: (ballCenterX - visible.minX) / visible.width,
             normalizedY: (ballCenterY - visible.minY) / visible.height
         )
+        let config = configStore.update { $0.ballAnchor = anchor }
         viewModel.updateConfig(config)
-        try? configStore.save(config)
     }
 }

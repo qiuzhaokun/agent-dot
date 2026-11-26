@@ -107,6 +107,56 @@ func runAppConfigTests() {
         expectEqual(store.load().completionSoundName, "Funk")
     }
 
+    runTest("ConfigStore update merges into latest on-disk config") {
+        let url = TestSupport.tempDirectory().appendingPathComponent("config.json")
+        let store = ConfigStore(fileURL: url)
+        var config = AppConfig.default
+        config.skippedUpdateVersion = "9.9.9"
+        config.lastUpdateCheckAt = 1_700_000_000
+        try store.save(config)
+
+        let merged = store.update { $0.expandedPanelWidth = 420 }
+        expectEqual(merged.expandedPanelWidth, 420)
+        expectEqual(merged.skippedUpdateVersion, "9.9.9")
+        expectEqual(merged.lastUpdateCheckAt, 1_700_000_000)
+
+        let loaded = store.load()
+        expectEqual(loaded.expandedPanelWidth, 420)
+        expectEqual(loaded.skippedUpdateVersion, "9.9.9")
+        expectEqual(loaded.lastUpdateCheckAt, 1_700_000_000)
+    }
+
+    runTest("ConfigStore concurrent updates keep every field") {
+        let url = TestSupport.tempDirectory().appendingPathComponent("config.json")
+        let store = ConfigStore(fileURL: url)
+        try store.save(.default)
+
+        DispatchQueue.concurrentPerform(iterations: 8) { index in
+            store.update { config in
+                switch index {
+                case 0: config.thresholdN = 7
+                case 1: config.expandedListHeight = 384
+                case 2: config.expandedPanelWidth = 420
+                case 3: config.ballBackgroundOpacity = 40
+                case 4: config.listBackgroundOpacity = 60
+                case 5: config.authorizationSoundEnabled = true
+                case 6: config.skippedUpdateVersion = "9.9.9"
+                default: config.lastUpdateCheckAt = 1_700_000_000
+                }
+            }
+        }
+
+        let loaded = store.load()
+        expectEqual(loaded.thresholdN, 7)
+        expectEqual(loaded.expandedListHeight, 384)
+        expectEqual(loaded.expandedPanelWidth, 420)
+        expectEqual(loaded.ballBackgroundOpacity, 40)
+        expectEqual(loaded.listBackgroundOpacity, 60)
+        expectEqual(loaded.authorizationSoundEnabled, true)
+        expectEqual(loaded.skippedUpdateVersion, "9.9.9")
+        expectEqual(loaded.lastUpdateCheckAt, 1_700_000_000)
+    }
+
     runTest("ConfigStore returns defaults on corrupt file") {
         let url = TestSupport.tempDirectory().appendingPathComponent("config.json")
         try "{not json".write(to: url, atomically: true, encoding: .utf8)

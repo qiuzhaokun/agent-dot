@@ -38,10 +38,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 model.updateNoticeVersion = version
             }
             if model.config.lastLaunchedVersion != version {
-                var updatedConfig = model.config
-                updatedConfig.lastLaunchedVersion = version
+                let updatedConfig = store.update { config in
+                    config.lastLaunchedVersion = version
+                    config.launchAtLogin = loginEnabled
+                }
                 model.updateConfig(updatedConfig)
-                try? store.save(updatedConfig)
             }
         }
         do {

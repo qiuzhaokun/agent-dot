@@ -154,4 +154,4 @@ AGENTDOT_SETTINGS_PATH="$TMP/settings.json" .build/debug/dot-hook install-hooks
 
 ## 验证
 
-核心逻辑有 123 个自动测试（状态机、待介入检测、transcript 提问检测、锁、终端上下文、settings 合并、可见性/隐藏状态机、消警策略、Kaku active pane 解析、会话名称解析、声音提醒调度、配置、语义版本/更新清单/Ed25519/替换回滚）。UI、四终端跳转、自动化权限需要在本机手工验证，步骤见技术方案 §12.3。
+核心逻辑有 128 个自动测试（状态机、待介入检测、transcript 提问检测、锁、终端上下文、settings 合并、可见性/隐藏状态机、消警策略、Kaku active pane 解析、会话名称解析、声音提醒调度、配置、语义版本/更新清单/Ed25519/替换回滚）。UI、四终端跳转、自动化权限需要在本机手工验证，步骤见技术方案 §12.3。

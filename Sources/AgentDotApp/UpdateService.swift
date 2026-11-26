@@ -95,9 +95,7 @@ final class UpdateService: NSObject, ObservableObject, URLSessionDownloadDelegat
     }
 
     func setAutomaticChecks(_ enabled: Bool) {
-        var config = configStore.load()
-        config.automaticUpdateChecks = enabled
-        try? configStore.save(config)
+        configStore.update { $0.automaticUpdateChecks = enabled }
 
         if enabled {
             startAutomaticChecks()
@@ -264,9 +262,7 @@ final class UpdateService: NSObject, ObservableObject, URLSessionDownloadDelegat
     }
 
     func skip(version: String) {
-        var config = configStore.load()
-        config.skippedUpdateVersion = version
-        try? configStore.save(config)
+        configStore.update { $0.skippedUpdateVersion = version }
         state = .idle
     }
 
@@ -457,9 +453,8 @@ final class UpdateService: NSObject, ObservableObject, URLSessionDownloadDelegat
     }
 
     private func recordCheckTime() {
-        var config = configStore.load()
-        config.lastUpdateCheckAt = Int64(Date().timeIntervalSince1970)
-        try? configStore.save(config)
+        let now = Int64(Date().timeIntervalSince1970)
+        configStore.update { $0.lastUpdateCheckAt = now }
     }
 
     private func scheduleTimer() {

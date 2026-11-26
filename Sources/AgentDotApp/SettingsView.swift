@@ -13,17 +13,13 @@ struct SettingsView: View {
                     title: "悬浮球背景",
                     value: viewModel.config.ballBackgroundOpacity
                 ) { newValue in
-                    var config = viewModel.config
-                    config.ballBackgroundOpacity = newValue
-                    update(config)
+                    mutate { $0.ballBackgroundOpacity = newValue }
                 }
                 opacityRow(
                     title: "列表面板背景",
                     value: viewModel.config.listBackgroundOpacity
                 ) { newValue in
-                    var config = viewModel.config
-                    config.listBackgroundOpacity = newValue
-                    update(config)
+                    mutate { $0.listBackgroundOpacity = newValue }
                 }
                 Text("仅背景变透明，文字和按钮保持清晰；最小 10%。")
                     .font(.caption)
@@ -38,9 +34,7 @@ struct SettingsView: View {
                     isOn: Binding(
                         get: { viewModel.config.authorizationSoundEnabled },
                         set: { enabled in
-                            var config = viewModel.config
-                            config.authorizationSoundEnabled = enabled
-                            update(config)
+                            mutate { $0.authorizationSoundEnabled = enabled }
                         }
                     )
                 )
@@ -49,9 +43,7 @@ struct SettingsView: View {
                     selection: viewModel.config.authorizationSoundName,
                     enabled: viewModel.config.authorizationSoundEnabled
                 ) { name in
-                    var config = viewModel.config
-                    config.authorizationSoundName = name
-                    update(config)
+                    mutate { $0.authorizationSoundName = name }
                 }
 
                 Toggle(
@@ -59,9 +51,7 @@ struct SettingsView: View {
                     isOn: Binding(
                         get: { viewModel.config.completionSoundEnabled },
                         set: { enabled in
-                            var config = viewModel.config
-                            config.completionSoundEnabled = enabled
-                            update(config)
+                            mutate { $0.completionSoundEnabled = enabled }
                         }
                     )
                 )
@@ -70,9 +60,7 @@ struct SettingsView: View {
                     selection: viewModel.config.completionSoundName,
                     enabled: viewModel.config.completionSoundEnabled
                 ) { name in
-                    var config = viewModel.config
-                    config.completionSoundName = name
-                    update(config)
+                    mutate { $0.completionSoundName = name }
                 }
             } header: {
                 Text("提醒")
@@ -83,9 +71,7 @@ struct SettingsView: View {
                     value: Binding(
                         get: { viewModel.config.thresholdN },
                         set: { newValue in
-                            var config = viewModel.config
-                            config.thresholdN = newValue
-                            update(config)
+                            mutate { $0.thresholdN = newValue }
                         }
                     ),
                     in: 1...9
@@ -110,17 +96,13 @@ struct SettingsView: View {
                                 }
                                 do {
                                     try LaunchAtLogin.enable(appPath: appPath)
-                                    var config = viewModel.config
-                                    config.launchAtLogin = true
-                                    update(config)
+                                    mutate { $0.launchAtLogin = true }
                                 } catch {
                                     viewModel.settingsStatus = "开启自启失败：\(error)"
                                 }
                             } else {
                                 try? LaunchAtLogin.disable()
-                                var config = viewModel.config
-                                config.launchAtLogin = false
-                                update(config)
+                                mutate { $0.launchAtLogin = false }
                             }
                         }
                     )
@@ -139,9 +121,7 @@ struct SettingsView: View {
                     isOn: Binding(
                         get: { viewModel.config.automaticUpdateChecks },
                         set: { enabled in
-                            var config = viewModel.config
-                            config.automaticUpdateChecks = enabled
-                            update(config)
+                            mutate { $0.automaticUpdateChecks = enabled }
                             viewModel.setAutomaticUpdateChecks(enabled)
                         }
                     )
@@ -238,8 +218,8 @@ struct SettingsView: View {
         return names
     }
 
-    private func update(_ config: AppConfig) {
-        viewModel.updateConfig(config)
-        try? configStore.save(config)
+    /// 只修改指定字段，以磁盘最新配置为基准，避免旧快照覆盖更新服务写入的状态。
+    private func mutate(_ body: (inout AppConfig) -> Void) {
+        viewModel.updateConfig(configStore.update(body))
     }
 }

@@ -208,11 +208,43 @@ public struct AppConfig: Codable, Equatable {
 public struct ConfigStore {
     public let fileURL: URL
 
+    /// 配置会被多个线程读改写：UI 在主线程，更新检查在 URLSession 回调线程。
+    /// 所有实例共用一把锁，保证「读取最新配置 → 修改 → 落盘」是一个原子序列。
+    private static let lock = NSLock()
+
     public init(fileURL: URL) {
         self.fileURL = fileURL
     }
 
     public func load() -> AppConfig {
+        Self.lock.lock()
+        defer { Self.lock.unlock() }
+        return loadLocked()
+    }
+
+    /// 整份覆盖写入。调用方必须持有最新配置，否则会覆盖其它字段；
+    /// 应用内请优先使用 `update(_:)`。
+    public func save(_ config: AppConfig) throws {
+        Self.lock.lock()
+        defer { Self.lock.unlock() }
+        try saveLocked(config)
+    }
+
+    /// 以磁盘上的最新配置为基础修改指定字段并落盘，返回合并后的配置。
+    /// 避免用界面的旧快照整份覆盖更新服务刚写入的字段（如 skippedUpdateVersion）。
+    /// 闭包在锁内执行，不要在其中调用 ConfigStore 的方法。
+    @discardableResult
+    public func update(_ mutate: (inout AppConfig) -> Void) -> AppConfig {
+        Self.lock.lock()
+        defer { Self.lock.unlock() }
+        var config = loadLocked()
+        mutate(&config)
+        config = config.clamped()
+        try? saveLocked(config)
+        return config
+    }
+
+    private func loadLocked() -> AppConfig {
         guard let data = try? Data(contentsOf: fileURL),
               let config = try? JSONDecoder().decode(AppConfig.self, from: data) else {
             return .default
@@ -220,7 +252,7 @@ public struct ConfigStore {
         return config.clamped()
     }
 
-    public func save(_ config: AppConfig) throws {
+    private func saveLocked(_ config: AppConfig) throws {
         let directory = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(
             at: directory,
